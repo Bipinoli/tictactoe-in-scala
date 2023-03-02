@@ -1,7 +1,8 @@
 package com.olibipin
-package game
+package engine
 
 import scala.math._
+import scala.util.Random
 
 object Node extends Enumeration {
   val empty = Value("_")
@@ -13,13 +14,53 @@ class Game {
   // X - first player (maximizer)
   // 0 - second player (minimizer)
   type GameState = Array[Array[Node.Value]]
-  var gameState = Array(
-    Array(Node.first, Node.second, Node.empty),
-    Array(Node.second, Node.empty, Node.empty),
-    Array(Node.first, Node.second, Node.first)
+  private var nextToGoIsFirstPlayer: Boolean = new Random().nextBoolean()
+
+  private var gameState = Array(
+    Array(Node.empty, Node.empty, Node.empty),
+    Array(Node.empty, Node.empty, Node.empty),
+    Array(Node.empty, Node.empty, Node.empty)
   )
 
-  def findBestMove(isFirstPlayer: Boolean): GameState = {
+  def hasAWinner: (Boolean, String) = {
+    evaluatePosition(gameState) match {
+      case 0 => (false, "")
+      case Int.MaxValue => (true, Node.first.toString)
+      case _ => (true, Node.second.toString)
+    }
+  }
+
+  def resetGame: Unit = {
+    nextToGoIsFirstPlayer = new Random().nextBoolean()
+    for (i <- 0 to 2) {
+      for (j <- 0 to 2) {
+        gameState(i)(j) = Node.empty
+      }
+    }
+  }
+
+  def isFirstPlayerNext: Boolean = nextToGoIsFirstPlayer
+
+  def isFree(row: Int, col: Int): Boolean = gameState(row)(col) == Node.empty
+
+  def playAt(row: Int, col: Int): Unit = {
+    if (gameState(row)(col) != Node.empty) throw new Exception("the position is already occupied by a piece")
+    gameState(row)(col) = if (nextToGoIsFirstPlayer) Node.first else Node.second
+    nextToGoIsFirstPlayer = !nextToGoIsFirstPlayer
+  }
+
+  def findBestMove(): (Int, Int) = {
+    val bestMoveState = findBestMove(nextToGoIsFirstPlayer)
+    for (i <- 0 to 2) {
+      for (j <- 0 to 2) {
+        if (bestMoveState(i)(j) != gameState(i)(j))
+          return (i, j)
+      }
+    }
+    throw new Exception("couldn't find a move")
+  }
+
+  private def findBestMove(isFirstPlayer: Boolean): GameState = {
     val (score, bestMove) = alphaBeta(gameState, Int.MinValue, Int.MaxValue, 100, isFirstPlayer)
     bestMove
   }
@@ -87,7 +128,6 @@ class Game {
     return 0
   }
 
-
   private def findNextPossibleMoves(state: GameState, isFirst: Boolean):Array[GameState] = {
     var moves = Array[GameState]()
     for (i <- 0 to 2) {
@@ -120,7 +160,7 @@ class Game {
     retval
   }
 
-  def gameStateToString(state: GameState) = {
+  private def gameStateToString(state: GameState) = {
     var retval = ""
     state.foreach(row => {
       row.foreach(col => retval += s"${col} ")
